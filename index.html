@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>政府拍賣地段查詢系統</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            padding: 15px;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e1e5eb;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1.8rem;
+        }
+        .chinese-title {
+            font-weight: bold;
+            font-family: Georgia, 'Times New Roman', Times, serif;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        @media (min-width: 992px) {
+            .app-container {
+                flex-direction: row;
+            }
+            .sidebar {
+                flex: 0 0 350px;
+            }
+            .map-container {
+                flex: 1;
+            }
+        }
+        /* 移動設備適配 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .map-container {
+                height: 450px;
+            }
+            .sidebar {
+                padding: 15px;
+            }
+        }
+        @media (max-width: 500px),
+        (max-height: 500px) {
+            body {
+                padding: 8px;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            .map-container {
+                height: 400px;
+            }
+            .btn {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+                margin-right: 5px;
+                margin-bottom: 8px;
+            }
+            .main-accordion-item {
+                margin-bottom: 8px;
+            }
+            .main-accordion-header {
+                padding: 12px 15px;
+                font-size: 0.95rem;
+            }
+        }
+        @media (max-height: 500px) {
+            .map-container {
+                height: 300px;
+            }
+            .sidebar {
+                max-height: 400px;
+                overflow-y: auto;
+            }
+        }
+        .sidebar {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            height: fit-content;
+        }
+        .map-container {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            height: 550px;
+            position: relative;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        /* 主摺疊面板樣式 */
+        .main-accordion-item {
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .main-accordion-header {
+            background-color: #f8f9fa;
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #2c3e50;
+            transition: background-color 0.2s;
+        }
+        .main-accordion-header:hover {
+            background-color: #e9ecef;
+        }
+        .main-accordion-header.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .main-accordion-icon {
+            transition: transform 0.3s;
+        }
+        .main-accordion-header.active .main-accordion-icon {
+            transform: rotate(180deg);
+        }
+        .main-accordion-content {
+            padding: 15px 20px;
+            background-color: white;
+            display: none;
+        }
+        .main-accordion-content.show {
+            display: block;
+        }
+        /* 內部摺疊面板樣式 */
+        .inner-accordion {
+            margin-bottom: 15px;
+        }
+        .inner-accordion-item {
+            border: 1px solid #e1e5eb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .inner-accordion-header {
+            background-color: #f8f9fa;
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            color: #2c3e50;
+            transition: background-color 0.2s;
+            font-size: 0.95rem;
+        }
+        .inner-accordion-header:hover {
+            background-color: #e9ecef;
+        }
+        .inner-accordion-header.active {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .inner-accordion-icon {
+            transition: transform 0.3s;
+            font-size: 0.8rem;
+        }
+        .inner-accordion-header.active .inner-accordion-icon {
+            transform: rotate(180deg);
+        }
+        .inner-accordion-content {
+            padding: 12px 15px;
+            background-color: white;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .inner-accordion-content.show {
+            display: block;
+        }
+        .instruction-list {
+            list-style-type: none;
+            margin-bottom: 15px;
+        }
+        .instruction-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+        .instruction-list li:before {
+            content: "✓";
+            color: #27ae60;
+            font-weight: bold;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        .btn-success {
+            background-color: #27ae60;
+        }
+        .btn-success:hover {
+            background-color: #219653;
+        }
+        .btn-warning {
+            background-color: #f39c12;
+        }
+        .btn-warning:hover {
+            background-color: #d68910;
+        }
+        .btn-info {
+            background-color: #17a2b8;
+        }
+        .btn-info:hover {
+            background-color: #138496;
+        }
+        .stats-card {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+        }
+        .stats-title {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .stats-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        .lot-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .lot-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .lot-item:hover {
+            background-color: #f0f7ff;
+            border-radius: 6px;
+        }
+        .lot-item.active {
+            background-color: #e8f4fc;
+            border-left: 3px solid #3498db;
+        }
+        .lot-csuid {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.95rem;
+            margin-bottom: 3px;
+        }
+        .lot-id {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            display: flex;
+            align-items: center;
+        }
+        .lot-id-icon {
+            margin-right: 5px;
+        }
+        .lot-area {
+            font-size: 0.85rem;
+            margin-top: 5px;
+            color: #666;
+        }
+        .no-data {
+            text-align: center;
+            padding: 30px 20px;
+            color: #7f8c8d;
+        }
+        .no-data i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            padding-top: 15px;
+            border-top: 1px solid #e1e5eb;
+        }
+        /* 地圖控制按鈕容器 - 右上角 */
+        .map-controls-topright {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .map-controls-topright .btn {
+            margin: 0;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        /* 地圖控制按鈕容器 - 左上角 */
+        .map-controls-topleft {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .map-controls-topleft .btn {
+            margin: 0;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        /* 圖層控制按鈕容器 - 右下角 */
+        .map-controls-bottomright {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .map-controls-bottomright .btn {
+            margin: 0;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        /* 圖例樣式 - 左下角 */
+        .legend {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            font-size: 0.9rem;
+            max-width: 200px;
+        }
+        .legend-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .legend-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* 數據加載狀態樣式 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, .1);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .data-status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        .data-status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .data-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .data-status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        /* 地段詳情樣式 */
+        .detail-section {
+            margin-bottom: 15px;
+        }
+        .detail-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 1rem;
+        }
+        .detail-content {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        .detail-label {
+            font-weight: bold;
+            width: 100px;
+            color: #555;
+            flex-shrink: 0;
+        }
+        .detail-value {
+            flex-grow: 1;
+            color: #333;
+        }
+        .detail-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .detail-actions .btn {
+            flex: 1;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+        }
+        /* 地段圖標 */
+        .icon-user {
+            color: #2ecc71;
+        }
+        /* 自定義滾動條 */
+        .lot-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .lot-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        .lot-list::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 3px;
+        }
+        .lot-list::-webkit-scrollbar-thumb:hover {
+            background: #2980b9;
+        }
+        /* 矩形資訊 */
+        .rectangle-info {
+            background-color: #e8f4fc;
+            border-left: 4px solid #3498db;
+            padding: 12px 15px;
+            margin-top: 15px;
+            border-radius: 0 6px 6px 0;
+        }
+        .marker-count {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            text-align: center;
+            line-height: 24px;
+            font-size: 0.9rem;
+            margin-left: 5px;
+        }
+        /* 當前選擇區域 */
+        .current-area {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px 15px;
+            margin-top: 15px;
+            border-radius: 0 6px 6px 0;
+        }
+        /* 按鈕組 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-group .btn {
+            flex: 1;
+            margin: 0;
+        }
+        /* 位置狀態 */
+        .location-status {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            border: 1px solid #e1e5eb;
+        }
+        /* 搜尋結果標題 */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .results-count {
+            background-color: #3498db;
+            color: white;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        /* 移動設備隱藏部分控制項 */
+        @media (max-width: 768px) {
+            .map-controls-bottomright {
+                bottom: 50px;
+            }
+            .legend {
+                max-width: 150px;
+                font-size: 0.8rem;
+            }
+        }
+        /* 矩形列表樣式 */
+        .rectangle-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+        }
+        .rectangle-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .rectangle-item:hover {
+            background-color: #f5f7fa;
+        }
+        .rectangle-info-small {
+            font-size: 0.85rem;
+        }
+        .rectangle-number {
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            margin-right: 8px;
+        }
+        .rectangle-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .rectangle-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .rectangle-action-btn:hover {
+            background-color: #e9ecef;
+        }
+        .rectangle-count {
+            background-color: #27ae60;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            margin-left: 5px;
+        }
+        /* 清除所有按鈕 */
+        .clear-all-btn {
+            width: 100%;
+            margin-top: 10px;
+        }
+        /* 繪製控制按鈕 */
+        .draw-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        /* 狀態指示器 */
+        .drawing-status {
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        .drawing-status.active {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        /* 地段多邊形樣式 */
+        .lot-polygon {
+            fillColor: '#FF0000';
+            fillOpacity: 0.2;
+            weight: 2;
+        }
+        .lot-polygon:hover {
+            fillOpacity: 0.4;
+            weight: 3;
+        }
+        /* 分類標籤 */
+        .group-badge {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        /* 地段分組摺疊面板 */
+        .group-accordion {
+            margin-bottom: 10px;
+            border: 1px solid #e1e5eb;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .group-header {
+            background-color: #f8f9fa;
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #2c3e50;
+            transition: background-color 0.2s;
+        }
+        .group-header:hover {
+            background-color: #e9ecef;
+        }
+        .group-header.active {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .group-icon {
+            transition: transform 0.3s;
+            font-size: 0.8rem;
+        }
+        .group-header.active .group-icon {
+            transform: rotate(180deg);
+        }
+        .group-content {
+            padding: 10px 15px;
+            background-color: white;
+            display: none;
+            border-top: 1px solid #e1e5eb;
+        }
+        .group-content.show {
+            display: block;
+        }
+        .group-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        .group-count {
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="chinese-title">政府拍賣地段查詢系統</span></h1>
+            <div class="subtitle">查詢香港政府拍賣地段資料，顯示地段的詳細資訊和地理範圍</div>
+        </header>
+        <div class="app-container">
+            <div class="sidebar">
+                <!-- 主控制面板摺疊 -->
+                <div class="main-accordion-item">
+                    <div class="main-accordion-header active">
+                        <span><i class="fas fa-sliders-h"></i> 地圖控制</span>
+                        <span class="main-accordion-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="main-accordion-content show">
+                        <!-- 位置控制摺疊 -->
+                        <div class="inner-accordion-item">
+                            <div class="inner-accordion-header">
+                                <span><i class="fas fa-location-dot"></i> 我的位置</span>
+                                <span class="inner-accordion-icon"><i class="fas fa-chevron-down"></i></span>
+                            </div>
+                            <div class="inner-accordion-content">
+                                <div class="btn-group">
+                                    <button class="btn btn-success" id="refreshCurrentLocationByGPS">
+                                        <i class="fas fa-location-crosshairs"></i> 更新位置
+                                    </button>
+                                </div>
+                                <div class="location-status">
+                                    <div class="stats-title">目前位置</div>
+                                    <div class="stats-value" id="currentPosition">--</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 搜尋控制摺疊 -->
+                        <div class="inner-accordion-item">
+                            <div class="inner-accordion-header active">
+                                <span><i class="fas fa-search"></i> 搜尋範圍</span>
+                                <span class="inner-accordion-icon"><i class="fas fa-chevron-down"></i></span>
+                            </div>
+                            <div class="inner-accordion-content show">
+                                <!-- 繪製控制按鈕 -->
+                                <div class="draw-controls">
+                                    <button class="btn btn-success" id="drawRectBtn">
+                                        <i class="fas fa-draw-polygon"></i> 繪製搜尋區域
+                                    </button>
+                                    <button class="btn btn-danger" id="clearCurrentRectBtn" style="display: none;">
+                                        <i class="fas fa-trash"></i> 清除當前區域
+                                    </button>
+                                    <button class="btn btn-warning" id="clearAllBtn">
+                                        <i class="fas fa-broom"></i> 清除全部
+                                    </button>
+                                </div>
+                                <!-- 繪製狀態 -->
+                                <div class="drawing-status" id="drawingStatus">
+                                    尚未開始繪製
+                                </div>
+                                <!-- 矩形列表 -->
+                                <div id="rectangleListContainer" style="display: none;">
+                                    <div class="results-header">
+                                        <span>已繪製區域</span>
+                                        <span class="results-count" id="rectangleCount">0</span>
+                                    </div>
+                                    <div class="rectangle-list" id="rectangleList">
+                                        <!-- 矩形項目將在這裡動態生成 -->
+                                    </div>
+                                </div>
+                                <div class="current-area" id="currentAreaInfo" style="display: none;">
+                                    <div class="stats-title">當前選擇區域</div>
+                                    <div class="stats-value" id="rectangleBounds">未選擇區域</div>
+                                    <div id="dataStatus" class="data-status info" style="display: none;">
+                                        <span id="statusText"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 搜尋結果統計 -->
+                        <div class="stats-card">
+                            <div class="stats-title">搜尋結果</div>
+                            <div class="stats-value" id="resultCount">0</div>
+                            <div class="stats-title">個地段</div>
+                        </div>
+                        <!-- 使用說明摺疊 -->
+                        <div class="inner-accordion-item">
+                            <div class="inner-accordion-header">
+                                <span><i class="fas fa-info-circle"></i> 使用說明</span>
+                                <span class="inner-accordion-icon"><i class="fas fa-chevron-down"></i></span>
+                            </div>
+                            <div class="inner-accordion-content">
+                                <ul class="instruction-list">
+                                    <li>點擊"繪製搜尋區域"按鈕開始在地圖上繪製矩形區域</li>
+                                    <li>每次只能繪製一個矩形，新的矩形會替換舊的</li>
+                                    <li>繪製完成後系統會自動載入該區域內的地段資料</li>
+                                    <li>點擊地段多邊形查看詳細資訊</li>
+                                    <li>點擊"更新位置"按鈕重新定位您的位置</li>
+                                    <li>點擊"清除當前區域"按鈕移除當前搜尋範圍</li>
+                                    <li>點擊"清除全部"按鈕移除所有搜尋區域和地段</li>
+                                </ul>
+                                <div class="rectangle-info">
+                                    <p><strong>數據來源:</strong> 政府拍賣地段公開數據</p>
+                                    <p><strong>數據類型:</strong> 政府拍賣地段 (LOT) 資料</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 地段列表摺疊 -->
+                <div class="main-accordion-item">
+                    <div class="main-accordion-header">
+                        <span><i class="fas fa-map-marked-alt"></i> 地段列表</span>
+                        <span class="main-accordion-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="main-accordion-content">
+                        <div class="results-header">
+                            <span>搜尋結果</span>
+                            <span class="results-count" id="listResultCount">0</span>
+                        </div>
+                        <div class="lot-list" id="lotList">
+                            <div class="no-data">
+                                <i class="fas fa-map-marked-alt"></i>
+                                <div>請先繪製搜尋範圍以載入地段資料</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-danger clear-all-btn" id="clearAllLots">
+                            <i class="fas fa-trash-alt"></i> 清除所有地段
+                        </button>
+                    </div>
+                </div>
+                <!-- 地段詳情摺疊 -->
+                <div class="main-accordion-item" id="lot-details">
+                    <div class="main-accordion-header">
+                        <span><i class="fas fa-info-circle"></i> 地段詳情</span>
+                        <span class="main-accordion-icon"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="main-accordion-content">
+                        <div id="lotDetailContainer">
+                            <div class="no-data">
+                                <i class="fas fa-map-marked-alt"></i>
+                                <div>請點擊地圖上的地段多邊形或列表中的地段以查看詳情</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="map-container">
+                <div id="map"></div>
+                <!-- 右上角控制：位置和視圖 -->
+                <div class="map-controls-topright">
+                    <button class="btn btn-success" id="zoomToLocation">
+                        <i class="fas fa-location-arrow"></i> 定位
+                    </button>
+                    <button class="btn" id="resetView">
+                        <i class="fas fa-globe-asia"></i> 香港全圖
+                    </button>
+                </div>
+                <!-- 右下角控制：圖層和顯示 -->
+                <div class="map-controls-bottomright">
+                    <button class="btn" id="toggleLegend">
+                        <i class="fas fa-layer-group"></i> 圖例
+                    </button>
+                    <button class="btn" id="toggleLots">
+                        <i class="fas fa-eye"></i> 顯示地段
+                    </button>
+                </div>
+                <!-- 左下角：圖例 -->
+                <div class="legend" id="mapLegend">
+                    <div class="legend-title">地圖圖例</div>
+                    <div class="legend-item">
+                        <div class="legend-icon">
+                            <i class="fas fa-user icon-user"></i>
+                        </div>
+                        <div>您的位置</div>
+                    </div>
+                    <div class="legend-item" style="margin-top:16px;margin-bottom:20px">
+                        <div class="legend-icon">
+                            <i class="fas fa-square" style="color: #3498db;"></i>
+                        </div>
+                        <div>搜尋區域</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-icon">
+                            <i class="fas fa-square" style="color: #FF0000;"></i>
+                        </div>
+                        <div>政府拍賣地段</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 新增的 Footer -->
+        <div class="footer">
+            <p>政府拍賣地段查詢系統 | 使用 LeafletJS 及 Leaflet.draw 插件構建 | 數據來源: 香港政府開放數據平台</p>
+        </div>
+    </div>
+    <!-- LeafletJS and plugins -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script>
+        // 應用程式狀態
+        const AppState = {
+            map: null,
+            userLocation: null,
+            drawnItems: null,
+            userMarkerLayer: null,
+            lotPolygons: null,
+            currentLots: [],
+            groupedLots: {}, // 按 LOTCSUID 分組的地段
+            currentRectangle: null, // 當前繪製的矩形（單一）
+            drawControl: null,
+            isLegendVisible: true,
+            areLotsVisible: true,
+            isDrawingMode: false
+        };
+        // 用戶位置圖標
+        const UserIcon = L.icon({
+            iconUrl: 'https://img.icons8.com/?size=100&id=OZZ2pTwn45ie&format=png&color=000000',
+            iconSize: [40, 40],
+            iconAnchor: [20, 40],
+            popupAnchor: [0, -40]
+        });
+        // 初始化應用程式
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await initializeMap();
+                initializeControls();
+                setupAccordions();
+                await updateUserLocation();
+            } catch (error) {
+                console.error('初始化錯誤:', error);
+                alert('應用程式初始化失敗，請刷新頁面。');
+            }
+        });
+        // 初始化地圖
+        async function initializeMap() {
+            AppState.map = L.map('map', {
+                zoomControl: true,
+                preferCanvas: true
+            });
+            // 添加 OpenStreetMap 圖層
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 19
+            }).addTo(AppState.map);
+            // 設置香港為默認視圖
+            AppState.map.setView([22.3193, 114.1694], 13);
+            // 初始化圖層
+            AppState.drawnItems = new L.FeatureGroup();
+            AppState.userMarkerLayer = new L.FeatureGroup();
+            AppState.lotPolygons = new L.FeatureGroup();
+            AppState.map.addLayer(AppState.drawnItems);
+            AppState.map.addLayer(AppState.userMarkerLayer);
+            AppState.map.addLayer(AppState.lotPolygons);
+        }
+        // 初始化控制項
+        function initializeControls() {
+            // 更新位置按鈕
+            document.getElementById('refreshCurrentLocationByGPS').addEventListener('click', async () => {
+                await updateUserLocation();
+            });
+            // 繪製矩形按鈕
+            document.getElementById('drawRectBtn').addEventListener('click', () => {
+                activateDrawingMode();
+            });
+            // 清除當前矩形按鈕
+            document.getElementById('clearCurrentRectBtn').addEventListener('click', () => {
+                clearCurrentRectangle();
+            });
+            // 清除全部按鈕
+            document.getElementById('clearAllBtn').addEventListener('click', () => {
+                clearAll();
+            });
+            // 清除所有地段按鈕
+            document.getElementById('clearAllLots').addEventListener('click', () => {
+                clearAllLots();
+            });
+            // 右上角控制：定位到當前位置
+            document.getElementById('zoomToLocation').addEventListener('click', () => {
+                if (AppState.userLocation) {
+                    AppState.map.setView([AppState.userLocation.latitude, AppState.userLocation.longitude], 16);
+                    showStatus('已定位到您的位置', 'info');
+                } else {
+                    showStatus('請先更新您的位置', 'error');
+                }
+            });
+            // 右上角控制：重置視圖
+            document.getElementById('resetView').addEventListener('click', () => {
+                AppState.map.setView([22.3193, 114.1694], 10);
+                showStatus('已顯示香港全圖', 'info');
+            });
+            // 右下角控制：切換圖例
+            document.getElementById('toggleLegend').addEventListener('click', () => {
+                const legend = document.getElementById('mapLegend');
+                if (AppState.isLegendVisible) {
+                    legend.style.display = 'none';
+                    showStatus('圖例已隱藏', 'info');
+                } else {
+                    legend.style.display = 'block';
+                    showStatus('圖例已顯示', 'info');
+                }
+                AppState.isLegendVisible = !AppState.isLegendVisible;
+            });
+            // 右下角控制：切換地段顯示
+            document.getElementById('toggleLots').addEventListener('click', () => {
+                if (AppState.areLotsVisible) {
+                    AppState.map.removeLayer(AppState.lotPolygons);
+                    document.getElementById('toggleLots').innerHTML = '<i class="fas fa-eye-slash"></i> 顯示地段';
+                    showStatus('地段多邊形已隱藏', 'info');
+                } else {
+                    AppState.map.addLayer(AppState.lotPolygons);
+                    document.getElementById('toggleLots').innerHTML = '<i class="fas fa-eye"></i> 隱藏地段';
+                    showStatus('地段多邊形已顯示', 'info');
+                }
+                AppState.areLotsVisible = !AppState.areLotsVisible;
+            });
+        }
+        // 設置摺疊面板功能
+        function setupAccordions() {
+            // 主摺疊面板
+            document.querySelectorAll('.main-accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const icon = header.querySelector('.main-accordion-icon i');
+                    if (header.classList.contains('active')) {
+                        header.classList.remove('active');
+                        content.classList.remove('show');
+                        icon.className = 'fas fa-chevron-down';
+                    } else {
+                        header.classList.add('active');
+                        content.classList.add('show');
+                        icon.className = 'fas fa-chevron-up';
+                    }
+                });
+            });
+            // 內部摺疊面板
+            document.querySelectorAll('.inner-accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const icon = header.querySelector('.inner-accordion-icon i');
+                    if (header.classList.contains('active')) {
+                        header.classList.remove('active');
+                        content.classList.remove('show');
+                        icon.className = 'fas fa-chevron-down';
+                    } else {
+                        header.classList.add('active');
+                        content.classList.add('show');
+                        icon.className = 'fas fa-chevron-up';
+                    }
+                });
+            });
+        }
+        // 更新用戶位置
+        async function updateUserLocation() {
+            try {
+                const position = await getCurrentLocation();
+                AppState.userLocation = position.coords;
+                // 更新 UI 顯示
+                document.getElementById('currentPosition').textContent =
+                    `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
+                // 居中地圖到用戶位置
+                AppState.map.setView([position.coords.latitude, position.coords.longitude], 16);
+                // 更新用戶標記
+                updateUserMarker(position.coords);
+                showStatus('位置已更新', 'success');
+                return position.coords;
+            } catch (error) {
+                console.error('獲取位置錯誤:', error);
+                showStatus('無法獲取位置，請確保已啟用定位服務', 'error');
+                return null;
+            }
+        }
+        // 獲取當前位置
+        function getCurrentLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('此瀏覽器不支援地理定位功能'));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                });
+            });
+        }
+        // 更新用戶標記
+        function updateUserMarker(coords) {
+            AppState.userMarkerLayer.clearLayers();
+            const marker = L.marker([coords.latitude, coords.longitude], {
+                icon: UserIcon,
+                zIndexOffset: 1000
+            }).addTo(AppState.userMarkerLayer);
+        }
+        // 啟用繪製模式
+        function activateDrawingMode() {
+            if (AppState.isDrawingMode) {
+                return;
+            }
+            // 清除現有的矩形
+            clearCurrentRectangle();
+            // 移除現有的繪製控制
+            if (AppState.drawControl) {
+                AppState.map.removeControl(AppState.drawControl);
+            }
+            // 創建新的繪製控制
+            AppState.drawControl = new L.Control.Draw({
+                position: 'topleft',
+                draw: {
+                    rectangle: {
+                        shapeOptions: {
+                            color: '#3498db',
+                            weight: 3,
+                            fillOpacity: 0.2
+                        },
+                        allowIntersection: false,
+                        repeatMode: false // 不允許重複繪製，每次只能繪製一個
+                    },
+                    polygon: false,
+                    polyline: false,
+                    circle: false,
+                    marker: false,
+                    circlemarker: false
+                },
+                edit: false
+            });
+            AppState.map.addControl(AppState.drawControl);
+            AppState.isDrawingMode = true;
+            // 更新 UI 狀態
+            updateDrawingUI();
+            // 監聽矩形創建事件
+            AppState.map.on('draw:created', handleDrawnRectangle);
+            showStatus('繪製模式已啟用 - 請在地圖上繪製矩形區域', 'info');
+        }
+        // 處理繪製的矩形
+        async function handleDrawnRectangle(event) {
+            const layer = event.layer;
+            // 清除現有的矩形和地段
+            clearCurrentRectangle();
+            // 設置矩形樣式
+            layer.setStyle({
+                color: '#3498db',
+                weight: 3,
+                fillOpacity: 0.2
+            });
+            // 添加到圖層組
+            AppState.drawnItems.addLayer(layer);
+            AppState.currentRectangle = layer;
+            // 移除繪製控制
+            if (AppState.drawControl) {
+                AppState.map.removeControl(AppState.drawControl);
+                AppState.drawControl = null;
+                AppState.isDrawingMode = false;
+            }
+            // 更新 UI 狀態
+            updateDrawingUI();
+            // 獲取矩形邊界
+            const bounds = layer.getBounds();
+            const northEast = bounds.getNorthEast();
+            const southWest = bounds.getSouthWest();
+            // 更新矩形資訊顯示
+            document.getElementById('rectangleBounds').textContent =
+                `東北: ${northEast.lat.toFixed(4)}, ${northEast.lng.toFixed(4)}\n西南: ${southWest.lat.toFixed(4)}, ${southWest.lng.toFixed(4)}`;
+            document.getElementById('currentAreaInfo').style.display = 'block';
+            // 顯示加載狀態
+            showStatus('正在搜尋區域內地段...', 'info', true);
+            try {
+                // 從 API 獲取地段數據
+                const lots = await fetchLotsInBounds(southWest, northEast);
+                AppState.currentLots = lots;
+                // 按 LOTCSUID 分組地段
+                groupLotsByCsuid(lots);
+                // 更新地段列表
+                updateLotList(lots);
+                // 在地圖上繪製地段多邊形
+                plotLotPolygons(lots);
+                // 更新統計
+                updateStats();
+                showStatus(`找到 ${lots.length} 個地段`, 'success');
+            } catch (error) {
+                console.error('搜尋地段錯誤:', error);
+                showStatus('搜尋地段失敗，請稍後再試', 'error');
+            }
+        }
+        // 從 API 獲取地段數據
+        async function fetchLotsInBounds(southWest, northEast) {
+            const url = `https://portal.csdi.gov.hk/server/services/common/landsd_rcd_1637217253134_22729/MapServer/WFSServer?service=wfs&request=GetFeature&typenames=LOT&outputFormat=geojson&srsName=EPSG:4326&filter=%3CFilter%3E%3CIntersects%3E%3CPropertyName%3ESHAPE%3C/PropertyName%3E%3Cgml:Envelope%20srsName=%27EPSG:4326%27%3E%3Cgml:lowerCorner%3E${southWest.lat}%20${southWest.lng}%3C/gml:lowerCorner%3E%3Cgml:upperCorner%3E${northEast.lat}%20${northEast.lng}%3C/gml:upperCorner%3E%3C/gml:Envelope%3E%3C/Intersects%3E%3C/Filter%3E`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`API 錯誤: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            return data.features || [];
+        }
+        // 按 LOTCSUID 分組地段
+        function groupLotsByCsuid(lots) {
+            AppState.groupedLots = {};
+            
+            lots.forEach(lot => {
+                const lotCsuid = lot.properties.LOTCSUID;
+                const customLotCsuid = lotCsuid ? lotCsuid.split(' ')[0] : '未分類'; // 提取第一部分
+                
+                if (!AppState.groupedLots[customLotCsuid]) {
+                    AppState.groupedLots[customLotCsuid] = [];
+                }
+                AppState.groupedLots[customLotCsuid].push(lot);
+            });
+        }
+        // 在地圖上繪製地段多邊形
+        function plotLotPolygons(lots) {
+            AppState.lotPolygons.clearLayers();
+            
+            lots.forEach((feature, index) => {
+                const geometry = feature.geometry;
+                const properties = feature.properties;
+                
+                if (geometry.type === 'MultiPolygon') {
+                    // 處理 MultiPolygon
+                    geometry.coordinates.forEach(polygonCoords => {
+                        const latLngs = polygonCoords[0].map(coord => [coord[1], coord[0]]);
+                        const polygon = L.polygon(latLngs, {
+                            color: '#FF0000',
+                            weight: 2,
+                            fillColor: '#FF0000',
+                            fillOpacity: 0.2,
+                            className: 'lot-polygon'
+                        }).addTo(AppState.lotPolygons);
+                        
+                        // 綁定彈出視窗和點擊事件
+                        bindLotEvents(polygon, properties, index);
+                    });
+                } else if (geometry.type === 'Polygon') {
+                    // 處理 Polygon
+                    const latLngs = geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+                    const polygon = L.polygon(latLngs, {
+                        color: '#FF0000',
+                        weight: 2,
+                        fillColor: '#FF0000',
+                        fillOpacity: 0.2,
+                        className: 'lot-polygon'
+                    }).addTo(AppState.lotPolygons);
+                    
+                    // 綁定彈出視窗和點擊事件
+                    bindLotEvents(polygon, properties, index);
+                }
+            });
+        }
+        // 綁定地段事件
+        function bindLotEvents(polygon, properties, index) {
+            // 創建彈出視窗內容
+            const popupContent = createPopupContent(properties);
+            // 綁定彈出視窗
+            polygon.bindPopup(popupContent);
+            // 點擊事件
+            polygon.on('click', () => {
+                polygon.openPopup();
+                showLotDetails(properties);
+                highlightLotInList(index);
+            });
+            // 懸停效果
+            polygon.on('mouseover', function() {
+                this.setStyle({
+                    fillOpacity: 0.4,
+                    weight: 3
+                });
+            });
+            polygon.on('mouseout', function() {
+                this.setStyle({
+                    fillOpacity: 0.2,
+                    weight: 2
+                });
+            });
+            // 存儲引用
+            polygon.lotIndex = index;
+            polygon.lotData = properties;
+        }
+        // 創建彈出視窗內容
+        function createPopupContent(properties) {
+            return `
+                <div style="min-width: 250px; font-size: 14px;">
+                    <div style="font-weight: bold; color: #2c3e50; margin-bottom: 8px; font-size: 16px;">
+                        地段資訊
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <b>地段編號:</b> ${properties.LOTCSUID || '沒有資料'}
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <b>地段 ID:</b> ${properties.LOTID || '沒有資料'}
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <b>Gml ID:</b> ${properties.GmlID || '沒有資料'}
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <b>面積:</b> ${properties.SHAPE_Area ? properties.SHAPE_Area.toFixed(2) + ' m²' : '沒有資料'}
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <b>周長:</b> ${properties.SHAPE_Length ? properties.SHAPE_Length.toFixed(2) + ' m' : '沒有資料'}
+                    </div>
+                    <div style="color: #27ae60; font-weight: bold;">
+                        點擊查看詳細資訊
+                    </div>
+                </div>
+            `;
+        }
+        // 更新地段列表
+        function updateLotList(lots) {
+            const listContainer = document.getElementById('lotList');
+            const countElement = document.getElementById('listResultCount');
+            
+            if (lots.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <div>在選擇範圍內沒有找到地段</div>
+                    </div>
+                `;
+                countElement.textContent = '0';
+                return;
+            }
+            
+            let listHTML = '';
+            
+            // 按組別顯示地段
+            Object.keys(AppState.groupedLots).forEach((groupKey, groupIndex) => {
+                const groupLots = AppState.groupedLots[groupKey];
+                const groupName = groupKey || '未分類';
+                const groupCount = groupLots.length;
+                
+                listHTML += `
+                    <div class="group-accordion">
+                        <div class="group-header" onclick="toggleGroup(${groupIndex})">
+                            <span>
+                                ${groupName}
+                                <span class="group-count">${groupCount}</span>
+                            </span>
+                            <span class="group-icon"><i class="fas fa-chevron-down"></i></span>
+                        </div>
+                        <div class="group-content" id="group-content-${groupIndex}">
+                            <div class="group-title">地段列表 (${groupCount}個)</div>
+                `;
+                
+                groupLots.forEach((lot, lotIndex) => {
+                    const props = lot.properties;
+                    const globalIndex = lots.indexOf(lot);
+                    const lotCsuid = props.LOTCSUID || '未知地段';
+                    const lotId = props.LOTID || '未知ID';
+                    
+                    listHTML += `
+                        <div class="lot-item" data-index="${globalIndex}" onclick="selectLotFromList(${globalIndex})">
+                            <div class="lot-csuid">${lotCsuid}</div>
+                            <div class="lot-id">
+                                <i class="fas fa-hashtag lot-id-icon"></i> 地段ID: ${lotId}
+                            </div>
+                            <div class="lot-area">
+                                面積: ${props.SHAPE_Area ? props.SHAPE_Area.toFixed(2) + ' m²' : '未知'}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                listHTML += `
+                        </div>
+                    </div>
+                `;
+            });
+            
+            listContainer.innerHTML = listHTML;
+            countElement.textContent = lots.length;
+            
+            // 確保地段列表面板是打開的
+            const listHeader = document.querySelector('.main-accordion-header:has(i.fa-map-marked-alt)');
+            if (listHeader && !listHeader.classList.contains('active')) {
+                listHeader.click();
+            }
+        }
+        // 切換組別顯示
+        window.toggleGroup = function (groupIndex) {
+            const groupContent = document.getElementById(`group-content-${groupIndex}`);
+            const groupHeader = groupContent.previousElementSibling;
+            const icon = groupHeader.querySelector('.group-icon i');
+            
+            if (groupHeader.classList.contains('active')) {
+                groupHeader.classList.remove('active');
+                groupContent.classList.remove('show');
+                icon.className = 'fas fa-chevron-down';
+            } else {
+                groupHeader.classList.add('active');
+                groupContent.classList.add('show');
+                icon.className = 'fas fa-chevron-up';
+            }
+        };
+        // 從列表中選擇地段
+        window.selectLotFromList = function (index) {
+            // 移除所有活動狀態
+            document.querySelectorAll('.lot-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // 添加活動狀態到當前項目
+            const selectedItem = document.querySelector(`.lot-item[data-index="${index}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+                // 滾動到該項目
+                selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            // 顯示地段詳情
+            if (AppState.currentLots[index]) {
+                const props = AppState.currentLots[index].properties;
+                showLotDetails(props);
+                // 在地圖上定位地段中心
+                const geometry = AppState.currentLots[index].geometry;
+                let centerLatLng;
+                
+                if (geometry.type === 'MultiPolygon') {
+                    // 計算 MultiPolygon 的中心點
+                    const firstPolygon = geometry.coordinates[0][0];
+                    const lngSum = firstPolygon.reduce((sum, coord) => sum + coord[0], 0);
+                    const latSum = firstPolygon.reduce((sum, coord) => sum + coord[1], 0);
+                    centerLatLng = [latSum / firstPolygon.length, lngSum / firstPolygon.length];
+                } else if (geometry.type === 'Polygon') {
+                    // 計算 Polygon 的中心點
+                    const coords = geometry.coordinates[0];
+                    const lngSum = coords.reduce((sum, coord) => sum + coord[0], 0);
+                    const latSum = coords.reduce((sum, coord) => sum + coord[1], 0);
+                    centerLatLng = [latSum / coords.length, lngSum / coords.length];
+                }
+                
+                if (centerLatLng) {
+                    AppState.map.setView([centerLatLng[0], centerLatLng[1]], 16);
+                }
+                // 嘗試打開彈出視窗
+                let foundPolygon = false;
+                AppState.lotPolygons.eachLayer(layer => {
+                    if (layer.lotIndex === index) {
+                        layer.openPopup();
+                        foundPolygon = true;
+                    }
+                });
+                if (!foundPolygon) {
+                    showStatus('無法在地圖上找到對應的地段多邊形', 'warning');
+                    return;
+                }
+                window.location.replace("#lot-details");
+            }
+        };
+        // 高亮列表中的地段
+        function highlightLotInList(index) {
+            // 移除所有活動狀態
+            document.querySelectorAll('.lot-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // 添加活動狀態到當前項目
+            const selectedItem = document.querySelector(`.lot-item[data-index="${index}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+                // 滾動到該項目
+                selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+        // 顯示地段詳情
+        function showLotDetails(properties) {
+            const container = document.getElementById('lotDetailContainer');
+            
+            const detailHtml = `
+                <div class="detail-section">
+                    <div class="detail-title">地段基本資訊</div>
+                    <div class="detail-content">
+                        <div class="detail-row">
+                            <div class="detail-label">地段編號:</div>
+                            <div class="detail-value">${properties.LOTCSUID || '沒有資料'}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">地段 ID:</div>
+                            <div class="detail-value">${properties.LOTID || '沒有資料'}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Gml ID:</div>
+                            <div class="detail-value">${properties.GmlID || '沒有資料'}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">OBJECTID:</div>
+                            <div class="detail-value">${properties.OBJECTID || '沒有資料'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-title">地段幾何資訊</div>
+                    <div class="detail-content">
+                        <div class="detail-row">
+                            <div class="detail-label">面積:</div>
+                            <div class="detail-value">${properties.SHAPE_Area ? properties.SHAPE_Area.toFixed(2) + ' 平方米' : '沒有資料'}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">周長:</div>
+                            <div class="detail-value">${properties.SHAPE_Length ? properties.SHAPE_Length.toFixed(2) + ' 米' : '沒有資料'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-title">地段類別</div>
+                    <div class="detail-content">
+                        <div class="detail-row">
+                            <div class="detail-label">自定義分類:</div>
+                            <div class="detail-value">${properties.LOTCSUID ? properties.LOTCSUID.split(' ')[0] : '未分類'}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-actions">
+                    <button class="btn" onclick="findAndZoomToLot('${properties.LOTCSUID || ''}')">
+                        <i class="fas fa-search-location"></i> 在地圖顯示
+                    </button>
+                </div>
+            `;
+            container.innerHTML = detailHtml;
+            // 確保地段詳情面板是打開的
+            const detailHeader = document.querySelector('.main-accordion-header:has(i.fa-info-circle)');
+            if (detailHeader && !detailHeader.classList.contains('active')) {
+                detailHeader.click();
+            }
+        }
+        // 查找並縮放到地段
+        window.findAndZoomToLot = function (lotCsuid) {
+            let foundPolygon = null;
+            AppState.lotPolygons.eachLayer(layer => {
+                if (layer.lotData && layer.lotData.LOTCSUID === lotCsuid) {
+                    foundPolygon = layer;
+                }
+            });
+            if (foundPolygon) {
+                const bounds = foundPolygon.getBounds();
+                AppState.map.fitBounds(bounds);
+                foundPolygon.openPopup();
+                showStatus('已定位到地段位置', 'success');
+                window.location.replace("#map");
+            } else {
+                showStatus('無法在地圖上找到該地段', 'error');
+            }
+        };
+        // 更新繪製 UI 狀態
+        function updateDrawingUI() {
+            const drawingStatus = document.getElementById('drawingStatus');
+            const drawBtn = document.getElementById('drawRectBtn');
+            const clearBtn = document.getElementById('clearCurrentRectBtn');
+            const rectListContainer = document.getElementById('rectangleListContainer');
+            if (AppState.isDrawingMode) {
+                drawingStatus.textContent = '繪製模式已啟用 - 請在地圖上繪製矩形';
+                drawingStatus.className = 'drawing-status active';
+                drawBtn.disabled = true;
+                drawBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在繪製...';
+                clearBtn.style.display = 'none';
+                rectListContainer.style.display = 'none';
+            } else if (AppState.currentRectangle) {
+                drawingStatus.textContent = '已繪製搜尋區域';
+                drawingStatus.className = 'drawing-status';
+                drawBtn.disabled = false;
+                drawBtn.innerHTML = '<i class="fas fa-draw-polygon"></i> 繪製新區域';
+                clearBtn.style.display = 'block';
+                rectListContainer.style.display = 'none';
+            } else {
+                drawingStatus.textContent = '尚未開始繪製';
+                drawingStatus.className = 'drawing-status';
+                drawBtn.disabled = false;
+                drawBtn.innerHTML = '<i class="fas fa-draw-polygon"></i> 繪製搜尋區域';
+                clearBtn.style.display = 'none';
+                rectListContainer.style.display = 'none';
+            }
+        }
+        // 清除當前矩形
+        function clearCurrentRectangle() {
+            if (AppState.currentRectangle) {
+                AppState.drawnItems.removeLayer(AppState.currentRectangle);
+                AppState.currentRectangle = null;
+            }
+            // 清除地段
+            clearAllLots();
+            // 更新 UI
+            document.getElementById('currentAreaInfo').style.display = 'none';
+            updateDrawingUI();
+            showStatus('已清除當前搜尋區域', 'info');
+        }
+        // 清除所有
+        function clearAll() {
+            // 清除矩形
+            clearCurrentRectangle();
+            // 移除繪製控制
+            if (AppState.drawControl) {
+                AppState.map.removeControl(AppState.drawControl);
+                AppState.drawControl = null;
+                AppState.isDrawingMode = false;
+            }
+            // 更新 UI
+            updateDrawingUI();
+            showStatus('已清除所有搜尋區域和地段', 'success');
+        }
+        // 清除所有地段
+        function clearAllLots() {
+            AppState.lotPolygons.clearLayers();
+            AppState.currentLots = [];
+            AppState.groupedLots = {};
+            // 更新統計
+            updateStats();
+            // 更新地段列表
+            updateLotList([]);
+            // 更新地段詳情
+            document.getElementById('lotDetailContainer').innerHTML = `
+                <div class="no-data">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <div>請點擊地圖上的地段多邊形或列表中的地段以查看詳情</div>
+                </div>
+            `;
+            showStatus('已清除所有地段標記', 'info');
+        }
+        // 更新統計數據
+        function updateStats() {
+            const totalLots = AppState.currentLots.length;
+            document.getElementById('resultCount').textContent = totalLots;
+        }
+        // 顯示狀態訊息
+        function showStatus(message, type, loading = false) {
+            const statusElement = document.getElementById('dataStatus');
+            const statusText = document.getElementById('statusText');
+            statusElement.className = `data-status ${type}`;
+            statusText.innerHTML = loading ? `<span class="loading"></span> ${message}` : message;
+            statusElement.style.display = 'block';
+            // 如果不是加載狀態，5秒後隱藏
+            if (!loading && type !== 'error') {
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 5000);
+            }
+        }
+        // 移動設備適配
+        function adjustForMobile() {
+            if (window.innerWidth <= 768 || window.innerHeight <= 500) {
+                // 調整地圖控制按鈕位置
+                document.querySelector('.map-controls-bottomright').style.bottom = '30px';
+                document.querySelector('.legend').style.maxWidth = '150px';
+                document.querySelector('.legend').style.fontSize = '0.8rem';
+            }
+        }
+        // 初始化移動設備適配
+        window.addEventListener('resize', adjustForMobile);
+        adjustForMobile();
+    </script>
+</body>
+</html>
